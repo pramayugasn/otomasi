@@ -14,7 +14,6 @@ create_user () {
 install_deps () {
 	apt-get update
 	apt-get install -y python-requests python-pip iptables
-	pip install twitter
 	pip install dnslib
 
 	cd /tmp
