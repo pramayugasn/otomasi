@@ -16,7 +16,9 @@ install_deps () {
 	apt-get install -y python-requests python-pip iptables
 
 	cd /tmp
-	wget https://github.com/pramayugasn/otomasi/blob/main/setup.py
+	wget https://github.com/foospidy/clilib/archive/master.zip
+	unzip -o master.zip
+	cd clilib-master
 	python setup.py bdist_egg
 	easy_install -Z dist/clilib-0.0.1-py2.7.egg
 }
@@ -29,7 +31,7 @@ install_honeypy() {
 	fi
 
 	cd /home/honey
-	git clone https://github.com/pramayugasn/otomasi
+	git clone https://github.com/foospidy/HoneyPy
 }
 
 install_iptkit () {
