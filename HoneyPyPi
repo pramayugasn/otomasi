@@ -40,9 +40,9 @@ install_iptkit () {
 	then
 		rm -rf ipt-kit
 	fi
-	git clone https://github.com/foospidy/ipt-kit
+	git clone https://github.com/pramayugasn/tcp-udp
 	python /home/honey/HoneyPy/Honey.py -ipt
-	cd ipt-kit
+	cd tcp-udp
 	mv /tmp/honeypy-ipt.sh .
 	./honeypy-ipt.sh > /dev/null
 	./ipt_survive_reboot
