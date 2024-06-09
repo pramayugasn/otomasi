@@ -21,29 +21,33 @@ try_command() {
 
 # Update & Install System
 echo "Updating system..."
-sudo apt update -y
-sudo apt install iptables -y
-sudo apt install authbind -y
+try_command "sudo apt update -y"
+try_command "sudo apt install iptables -y"
+try_command "sudo apt install authbind -y"
 
 # Install dependencies
 echo "Installing dependencies..."
 try_command "sudo apt install -y git python3-venv libssl-dev libffi-dev build-essential libpython3-dev python3-minimal authbind"
 
-# Create user Cowrie
+# Create user Cowrie if not exists
 echo "Creating cowrie user..."
-if id "cowrie" &>/dev/null; then
+if ! id "cowrie" &>/dev/null; then
+    try_command "sudo adduser --disabled-password --gecos \"\" cowrie"
+else
     echo "User cowrie already exists. Deleting user..."
     sudo deluser --remove-home cowrie
+    try_command "sudo adduser --disabled-password --gecos \"\" cowrie"
 fi
-try_command "sudo adduser --disabled-password --gecos \"\" cowrie"
 
 # Switch and set up to user cowrie
 echo "Setting up Cowrie environment..."
-if [ -d "/home/cowrie/cowrie" ]; then
+if [ ! -d "/home/cowrie/cowrie" ]; then
+    try_command "sudo -u cowrie git clone https://github.com/cowrie/cowrie /home/cowrie/cowrie"
+else
     echo "Directory /home/cowrie/cowrie already exists. Deleting directory..."
     sudo rm -rf /home/cowrie/cowrie
+    try_command "sudo -u cowrie git clone https://github.com/cowrie/cowrie /home/cowrie/cowrie"
 fi
-try_command "sudo -u cowrie git clone https://github.com/cowrie/cowrie /home/cowrie/cowrie"
 
 # Create virtual environment and install dependencies
 try_command "sudo -u cowrie /bin/bash -c 'cd /home/cowrie/cowrie && python3 -m venv cowrie-env && source cowrie-env/bin/activate && python -m pip install --upgrade pip && python -m pip install --upgrade -r requirements.txt && cp etc/cowrie.cfg.dist etc/cowrie.cfg'"
