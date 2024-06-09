@@ -1,0 +1,68 @@
+#!/bin/bash
+
+# Looping while system can't install part of honeypot script
+try_command() {
+    local cmd="$1"
+    local attempts=0
+    local max_attempts=3
+    local sleep_time=5
+
+    while ! eval "$cmd"; do
+        attempts=$((attempts + 1))
+        if [ $attempts -ge $max_attempts ]; then
+            echo "Gagal dalam $attempts kali percobaan: $cmd"
+            return 1
+        fi
+        echo "Percobaan ke-$attempts gagal: $cmd"
+        echo "Reboot $sleep_time detik..."
+        sleep $sleep_time
+    done
+}
+
+# Update & Install System
+echo "Updating system..."
+sudo apt update -y
+sudo apt install iptables -y
+sudo apt install authbind -y
+
+# Install dependencies
+echo "Installing dependencies..."
+try_command "sudo apt install -y git python3-venv libssl-dev libffi-dev build-essential libpython3-dev python3-minimal authbind"
+
+# Create user Cowrie
+echo "Creating cowrie user..."
+if id "cowrie" &>/dev/null; then
+    echo "User cowrie already exists. Deleting user..."
+    sudo deluser --remove-home cowrie
+fi
+try_command "sudo adduser --disabled-password --gecos \"\" cowrie"
+
+# Switch and set up to user cowrie
+echo "Setting up Cowrie environment..."
+if [ -d "/home/cowrie/cowrie" ]; then
+    echo "Directory /home/cowrie/cowrie already exists. Deleting directory..."
+    sudo rm -rf /home/cowrie/cowrie
+fi
+try_command "sudo -u cowrie git clone https://github.com/cowrie/cowrie /home/cowrie/cowrie"
+
+# Create virtual environment and install dependencies
+try_command "sudo -u cowrie /bin/bash -c 'cd /home/cowrie/cowrie && python3 -m venv cowrie-env && source cowrie-env/bin/activate && python -m pip install --upgrade pip && python -m pip install --upgrade -r requirements.txt && cp etc/cowrie.cfg.dist etc/cowrie.cfg'"
+
+# Start Cowrie
+echo "Starting Cowrie..."
+try_command "sudo -u cowrie /bin/bash -c 'source /home/cowrie/cowrie/cowrie-env/bin/activate && /home/cowrie/cowrie/bin/cowrie start'"
+
+# Redirect Port
+if sudo iptables -t nat -L PREROUTING | grep -q 'REDIRECT.*tcp.*dpt:22'; then
+    echo "Port redirection for port 22 already exists. Deleting rule..."
+    sudo iptables -t nat -D PREROUTING -p tcp --dport 22 -j REDIRECT --to-port 2222
+fi
+if sudo iptables -t nat -L PREROUTING | grep -q 'REDIRECT.*tcp.*dpt:23'; then
+    echo "Port redirection for port 23 already exists. Deleting rule..."
+    sudo iptables -t nat -D PREROUTING -p tcp --dport 23 -j REDIRECT --to-port 2223
+fi
+try_command "sudo /bin/bash -c 'iptables -t nat -A PREROUTING -p tcp --dport 22 -j REDIRECT --to-port 2222 && iptables -t nat -A PREROUTING -p tcp --dport 23 -j REDIRECT --to-port 2223 && touch /etc/authbind/byport/22 && chown cowrie:cowrie /etc/authbind/byport/22 && chmod 770 /etc/authbind/byport/22'"
+
+# Open Log
+echo "Try to open Log..."
+try_command "sudo -u cowrie /bin/bash -c 'source /home/cowrie/cowrie/cowrie-env/bin/activate && tail -f /home/cowrie/cowrie/var/log/cowrie/cowrie.log'"
